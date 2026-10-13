@@ -2692,7 +2692,7 @@
             });
         }
         { const prev = updateRacers; updateRacers = function (dt) { prev(dt); updateSpecial(dt); }; }
-        { const prev = setupRace; setupRace = function (l) { ensureSpecial(); prev(l); AJ.special = 0; endSpecialNow(); updateSpecial.lastD = window.__throwStats.dodges; racers.forEach(r => { r.nearIn = false; r.tackled = 0; }); }; }
+        { const prev = setupRace; setupRace = function (l) { ensureSpecial(); prev(l); AJ.special = 100; endSpecialNow(); updateSpecial.lastD = window.__throwStats.dodges; racers.forEach(r => { r.nearIn = false; r.tackled = 0; }); }; }
         { const prev = updateHUD; updateHUD = function () { prev(); if (specialBtn) { specialBtn.classList.toggle('ready', AJ.special >= 100 && specialT <= 0); specialBtn.style.setProperty('--f', AJ.special + '%'); } }; }
         { const prev = placeActors; placeActors = function (dt) { prev(dt); if (gameState !== 'racing' && specialT <= 0 && specialLeaveT <= 0) buddies.forEach(b => { if (b.bubble) b.bubble.style.opacity = 0; }); }; }
         Object.assign(window.RACE, {
