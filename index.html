@@ -2701,7 +2701,7 @@
         /* ================= SCORE + catch penalties (coin flip) ================= */
         const BEST_KEY = 'ajrace.best.v1';
         let score = 0, scoreAcc = 0, lastHearts = 0, lastSlips = 0, scoreEl = null;
-        const PENALTIES = [['MET HER PARENTS', 'Dad asked about his "career plans"...'], ['SHE CHANGED HIS RELATIONSHIP STATUS', '"In a relationship" — he was not consulted']];
+        const PENALTIES = [['BUN IN THE OVEN', 'Congrats, Dad. Start saving for diapers.'], ["I'M ITCHY", 'Should have kept running...']];
         function loadBest() { try { return JSON.parse(localStorage.getItem(BEST_KEY) || '{}') || {}; } catch (e) { return {}; } }
         function ensureScoreUI() {
             if (scoreEl) return;
