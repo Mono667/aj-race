@@ -508,16 +508,16 @@
         <div class="howto-grid">
             <div class="hd">GOAL</div>
             <div><span class="ic" style="color:#6affd8">SAFE</span><span>The girls are chasing AJ! Run the winding Thunder Bay course and reach his <b>SAFE SPACE</b> (the glowing couch) <b>before any girl</b> gets there.</span></div>
-            <div><span class="ic" style="color:#ff6aa8">&#9829;</span><span>Each girl who <b>tags</b> AJ steals a heart. Fill the <b>CAUGHT</b> meter and he goes <b>LOVESTRUCK</b> (game over). Short invulnerability after each tag.</span></div>
+            <div><span class="ic" style="color:#ff6aa8">&#9829;</span><span>A <b>tag</b> steals a heart + coin-flip penalty. All hearts gone = <b>LOVESTRUCK</b>. <b>SCORE</b>: +1/s, gold +10, slips +5, bumps &minus;5.</span></div>
             <div><span class="ic">MAP</span><span>3 neighbourhoods: <b>WESTFORT</b> (easy, 4 hearts), <b>FORT WILLIAM</b> (3 hearts), <b>PORT ARTHUR</b> (icy winter, 3 hearts). Street signs show where you are.</span></div>
             <div class="hd">ON THE COURSE</div>
             <div><span class="ic">JUMP</span><span>Jump <b>fences</b>; steer around <b>dumpsters</b> and <b>trash cans</b>; <b>slush</b> slows you; <b>ice</b> is slippery.</span></div>
             <div><span class="ic">SLIDE</span><span>Slide under <b>scaffold pipes</b>. Hug the inside of bends on the yellow <b>SHORTCUT</b> arrows.</span></div>
-            <div><span class="ic" style="color:#2affc8">CAN</span><span><b>Energy drink</b>: refills BOOST + quick burst. <b>SCOOTER</b>: big speed for 6s. <b>FANCY SHOES</b>: faster + higher jumps for 8s.</span></div>
-            <div><span class="ic">POS</span><span>Top-left shows your <b>place</b>, hearts and boost; the top bar shows everyone's progress to SAFE SPACE.</span></div>
+            <div><span class="ic" style="color:#2affc8">CAN</span><span><b>Energy drink</b> refills boost, <b>SCOOTER</b> 6s, <b>FANCY SHOES</b> 8s. <b style="color:#ffd040">SPECIAL</b> (near-misses + dodges): <b>CRAIG</b> &amp; <b>BINO</b> block for 4s.</span></div>
+            <div><span class="ic" style="color:#ff7ab8">!</span><span>Girls who fall behind flash <b>!</b> and toss <b>lace panties</b>: steer/jump to dodge. Hit = AJ <b>pukes</b> + slows (no heart lost); girls <b>slip</b> in it. <b style="color:#ffd040">GOLDEN</b> pair = speed boost.</span></div>
             <div class="hd">CONTROLS</div>
             <div><span class="ic">L</span><span><b>Left thumb</b> joystick steers (pull back to brake). AJ runs on his own.</span></div>
-            <div><span class="ic">&#9654;</span><span><span class="key">BOOST</span> hold (uses stamina) &bull; <span class="key">JUMP</span> &bull; <span class="key">SLIDE</span> &bull; <span class="key">MENU</span> pause.</span></div>
+            <div><span class="ic">&#9654;</span><span><span class="key">BOOST</span> hold (uses stamina) &bull; <span class="key">JUMP</span> &bull; <span class="key">SLIDE</span> &bull; <span class="key">SPECIAL</span> &bull; <span class="key">MENU</span> pause.</span></div>
         </div>
         <button id="btn-howto-back" class="btn">Got It</button>
     </div>
@@ -1895,7 +1895,7 @@
         let boosting = false, wantJump = false, wantSlide = false, scooterMesh = null, shoeMeshes = [], heartEyes = [], floatHearts = [];
         const AJ_BASE = 8.4, BOOST_MUL = 1.45, GRAV = 24, JUMP_V = 8.6;
         function resetAJ() {
-            Object.assign(AJ, { s: 10, d: 0, vd: 0, y: 0, vy: 0, v: 0, stumble: 0, slide: 0, invuln: 0, hearts: 0, boostT: 0, pu: null, puT: 0, stam: 100, finished: false });
+            Object.assign(AJ, { gag: 0, goldT: 0, s: 10, d: 0, vd: 0, y: 0, vy: 0, v: 0, stumble: 0, slide: 0, invuln: 0, hearts: 0, boostT: 0, pu: null, puT: 0, stam: 100, finished: false });
             boosting = false; wantJump = false; wantSlide = false;
             setPowerVisual(null); heartEyes.forEach(e => e.visible = false);
             player.rotation.set(0, 0, 0);
@@ -2029,6 +2029,8 @@
             if (under && under.type === 'slush') mul *= AJ.pu === 'scooter' ? 0.8 : 0.55;
             const onIce = under && under.type === 'ice';
             if (AJ.stumble > 0) { AJ.stumble -= dt; mul *= 0.25; }
+            if (AJ.gag > 0) { AJ.gag -= dt; mul *= AJ.gagMul || 0.55; }
+            if (AJ.goldT > 0) { AJ.goldT -= dt; mul *= 1.4; if (AJ.goldT <= 0 && window.__goldOff) window.__goldOff(); }
             if (AJ.slide > 0) AJ.slide -= dt;
             AJ.v += (AJ_BASE * mul - AJ.v) * Math.min(1, dt * (AJ.stumble > 0 ? 8 : 2.5));
             const want = input.x * 6.2, grip = onIce ? 1.2 : 9;
@@ -2067,7 +2069,7 @@
                 let mul = 1;
                 if (gap > 10) mul += L.rubber * Math.min(1, (gap - 10) / 25);
                 if (gap < -6) mul -= 0.12;
-                const doubleBack = gap < 0 && gap > -10 && r.tagCd <= 0 && AJ.invuln <= 0;   // she spotted AJ behind her: turn around and pounce
+                const doubleBack = gap < 0 && gap > -25 && r.tagCd <= 0;   // she spotted AJ behind her: turn around and pounce
                 if (doubleBack) mul = -0.4;
                 if (r.stumble > 0) { r.stumble -= dt; mul *= 0.3; }
                 if (r.slow > 0) { r.slow -= dt; mul *= 0.55; }
@@ -2158,17 +2160,17 @@
             player.position.set(p.x, AJ.y + (AJ.pu === 'scooter' ? 0.2 : 0), p.z);
             const Pp = player.userData.parts;
             if (gameState === 'lost' && endKind === 'love') {
-                player.rotation.set(0, ph + Math.sin(elapsed * 2) * 0.3, Math.sin(elapsed * 2.4) * 0.12); Pp.head.rotation.x = 0;
-                Pp.armL.rotation.x = -2.2 + Math.sin(elapsed * 3) * 0.2; Pp.armR.rotation.x = -2.2 - Math.sin(elapsed * 3) * 0.2; Pp.legL.rotation.x = 0; Pp.legR.rotation.x = 0;
-                heartEyes.forEach((e, i) => { const s = 0.16 + Math.abs(Math.sin(elapsed * 6 + i)) * 0.06; e.scale.set(s, s, 1); });
+                player.rotation.set(0, ph + Math.sin(elapsed * 2) * 0.12, Math.sin(elapsed * 2.4) * 0.12); Pp.head.rotation.x = 0;
+                Pp.armL.rotation.set(-0.3, 0, 1.25 + Math.sin(elapsed * 3) * 0.15); Pp.armR.rotation.set(-0.3, 0, -1.25 - Math.sin(elapsed * 3) * 0.15); Pp.legL.rotation.x = 0; Pp.legR.rotation.x = 0;
+                heartEyes.forEach((e, i) => { const s = 0.2 + Math.abs(Math.sin(elapsed * 6 + i)) * 0.07; e.scale.set(s, s, 1); });
                 if (Math.random() < dt * 5) spawnHearts(1);
             } else if (gameState === 'won') {
-                player.rotation.set(0, ph, 0);
+                player.rotation.set(0, ph, 0); Pp.armL.rotation.z = Pp.armR.rotation.z = 0;
                 Pp.armL.rotation.x = Pp.armR.rotation.x = -2.9 + Math.sin(elapsed * 10) * 0.3; Pp.legL.rotation.x = Pp.legR.rotation.x = 0;
                 player.position.y = Math.abs(Math.sin(elapsed * 5)) * 0.6;
                 if (Math.random() < dt * 4) spawnHearts(0);
             } else {
-                const steer = Math.atan2(AJ.vd, Math.max(2, AJ.v)) * 0.8;
+                const steer = Math.atan2(AJ.vd, Math.max(2, AJ.v)) * 0.8; Pp.armL.rotation.z = Pp.armR.rotation.z = 0;
                 player.rotation.set(AJ.slide > 0 ? -1.15 : AJ.stumble > 0 ? 0.45 + Math.sin(elapsed * 30) * 0.1 : 0.1, ph + steer, 0);
                 if (AJ.slide > 0) player.position.y += 0.35;
                 walkC += dt * Math.max(AJ.v, 0) * 1.5;
@@ -2196,8 +2198,8 @@
             } else {
                 const h = headAt(AJ.s + 2), px_ = player.position.x, pz = player.position.z;
                 if (gameState === 'won' || (gameState === 'lost' && endKind === 'love')) {
-                    const a = h + Math.sin(elapsed * 0.4) * 0.5, dist = gameState === 'won' ? 4.6 : 2.7;
-                    _cp.set(px_ + Math.sin(a) * dist, gameState === 'won' ? 1.9 : 1.75, pz + Math.cos(a) * dist);
+                    const won = gameState === 'won', a = h + Math.sin(elapsed * 0.4) * (won ? 0.5 : 0.2), dist = won ? 4.6 : 3.0;
+                    _cp.set(px_ + Math.sin(a) * dist, won ? 1.9 : 2.15, pz + Math.cos(a) * dist);
                     _ct.set(px_, gameState === 'won' ? 1.6 : 2.0, pz);
                 } else {
                     _cp.set(px_ - Math.sin(h) * 5.6, 3.0 + AJ.y * 0.4, pz - Math.cos(h) * 5.6);
@@ -2294,7 +2296,7 @@
             addBlobShadow(player, 0.6);
             player.rotation.order = 'YXZ';
             try { if (save.outfit && save.outfit !== 'default' && isUnlocked(save.outfit)) applyOutfit(save.outfit); } catch (e) { /* classic look */ }
-            for (const x of [-0.1, 0.1]) { const e = new THREE.Sprite(TEX.heartMat); e.position.set(x, 2.12, 0.27); e.scale.set(0.18, 0.18, 1); e.visible = false; player.add(e); heartEyes.push(e); }
+            for (const x of [-0.1, 0.1]) { const e = new THREE.Sprite(TEX.heartMat); e.position.set(x * 1.1, 2.12, 0.3); e.scale.set(0.2, 0.2, 1); e.renderOrder = 5; e.visible = false; player.add(e); heartEyes.push(e); }
             const keepSeed = firstSeed; setupRace(0); firstSeed = keepSeed;
             setupControls(); showBlurb();
             window.addEventListener('resize', onResize);
@@ -2349,6 +2351,416 @@
         }
         const _origRacers = updateRacers;
         updateRacers = function (dt) { if (window.__freezeGirls) { racers.forEach(r => { if (r.tagCd > 0) r.tagCd -= dt; }); return; } _origRacers(dt); };
+        /* ================= PANTY TOSS + PUKE (comedic, cartoony) ================= */
+        TAUNTS.toss = [['これでも食らえ〜！', 'Catch, AJ~!'], ['プレゼントだよ♡', "Here's a present♡"], ['止まりなさーい！', 'Stop right there!']];
+        TAUNTS.ew = [['キモい！', 'Ew, gross!'], ['うわっ、滑る〜！', 'Whoa, slippery~!'], ['最悪〜！', 'The worst~!']];
+        const THROW = { // per escalation stage (race progress 0-33%, 33-70%, 70-100%)
+            cd: [10, 6.5, 4], speed: [1, 0.8, 0.62], throwers: [1, 2, 3], volley: [0, 0.08, 0.4], wait: [2.2, 1.6, 1.1], range: [12, 14, 17],
+            puke: [{ n: 8, slow: 1.5, mul: 0.6, wob: 0.06, vig: 0.22, puddle: 0.9 }, { n: 14, slow: 1.9, mul: 0.5, wob: 0.11, vig: 0.38, puddle: 1.15 }, { n: 24, slow: 2.4, mul: 0.42, wob: 0.17, vig: 0.55, puddle: 1.4 }]
+        };
+        let projectiles = [], pukeParts = [], puddles = [], throwStage = 0;
+        window.__throwStats = { thrown: 0, hits: 0, dodges: 0, slips: 0 };
+        const MAX_PUDDLES = 8, MAX_PUKE = 90;
+        let pantyGeo = null, bangMat = null, pukeGeo = null, pukeMat = null, puddleMat = null;
+        function ensureThrowAssets() {
+            if (pantyGeo) return;
+            const sh = new THREE.Shape(); // cartoon briefs outline: wide waistband, curved leg holes
+            sh.moveTo(-0.26, 0.12); sh.lineTo(0.26, 0.12); sh.lineTo(0.24, 0.02);
+            sh.quadraticCurveTo(0.1, -0.02, 0.07, -0.17); sh.lineTo(-0.07, -0.17);
+            sh.quadraticCurveTo(-0.1, -0.02, -0.24, 0.02); sh.closePath();
+            const body = new THREE.ExtrudeGeometry(sh, { depth: 0.05, bevelEnabled: true, bevelSize: 0.015, bevelThickness: 0.015, bevelSegments: 1, curveSegments: 5 });
+            body.translate(0, 0, -0.025);
+            pantyGeo = { body, lace: new THREE.SphereGeometry(0.03, 6, 4), bow: new THREE.ConeGeometry(0.035, 0.06, 5) };
+            TEX.panty = phong({ color: 0xff7ab8, specular: 0x553344, shininess: 30 });
+            TEX.lace = phong({ color: 0xd8204a });
+            TEX.goldLace = phong({ color: 0xfff0a0, emissive: 0x4a3a00, shininess: 90, specular: 0xffffff });
+            bangMat = new THREE.SpriteMaterial({ map: pixTex(32, 48, (g) => { g.clearRect(0, 0, 32, 48); g.fillStyle = '#c81e1e'; g.beginPath(); g.arc(16, 22, 15, 0, 7); g.fill(); g.fillStyle = '#ffe040'; g.font = 'bold 30px Impact, Arial Black'; g.textAlign = 'center'; g.fillText('!', 16, 34); }), transparent: true, depthWrite: false });
+            pukeGeo = new THREE.IcosahedronGeometry(0.075, 0);
+            pukeMat = new THREE.MeshBasicMaterial({ color: 0x7ad83a });
+            puddleMat = new THREE.MeshPhongMaterial({ map: TEX.glow, color: 0x6ac828, emissive: 0x1a3a08, transparent: true, opacity: 0.85, depthWrite: false, shininess: 80, specular: 0x88ff88, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
+            const css = document.createElement('style');
+            css.textContent = `#bleh{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%) scale(0.4);font:900 2.6rem Impact,'Arial Black',sans-serif;color:#9aff4a;-webkit-text-stroke:2px #1a4a0a;text-shadow:0 0 12px #6aff2a;opacity:0;pointer-events:none;transition:transform .18s ease-out,opacity .25s;z-index:1050}
+            #bleh.on{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(-6deg)}
+            #green-vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 45%,rgba(90,210,40,.85) 100%);opacity:0;transition:opacity .5s;z-index:900}
+            #desperate{position:absolute;left:50%;top:calc(80px + env(safe-area-inset-top));transform:translateX(-50%) scale(.6);background:linear-gradient(90deg,#ff2a8a,#ff7a2a);color:#fff;font:900 .95rem 'Segoe UI',Arial Black,sans-serif;letter-spacing:2px;padding:5px 16px;border-radius:14px;border:2px solid #fff;box-shadow:0 0 14px #ff2a8a;opacity:0;pointer-events:none;transition:all .25s;z-index:1060;white-space:nowrap}
+            #desperate.on{opacity:1;transform:translateX(-50%) scale(1)}`;
+            document.head.appendChild(css);
+            for (const [id, txt] of [['bleh', 'BLEH!'], ['green-vig', ''], ['desperate', "THEY'RE GETTING DESPERATE!"]]) { const d = document.createElement('div'); d.id = id; d.textContent = txt; $('hud').appendChild(d); }
+        }
+        function makePanty(golden) {
+            const g = new THREE.Group();
+            g.add(new THREE.Mesh(pantyGeo.body, golden ? TEX.gold : TEX.panty));
+            for (let i = 0; i < 7; i++) { const m = new THREE.Mesh(pantyGeo.lace, golden ? TEX.goldLace : TEX.lace); m.position.set(-0.24 + i * 0.08, 0.13, 0); g.add(m); } // scalloped lace trim
+            for (const s of [-1, 1]) { const b = new THREE.Mesh(pantyGeo.bow, golden ? TEX.goldLace : TEX.lace); b.rotation.z = s * Math.PI / 2; b.position.set(s * 0.03, 0.08, 0.04); g.add(b); } // little bow
+            g.scale.setScalar(1.25);
+            return g;
+        }
+        const stageOf = () => { const p = AJ.s / TR.len; return p < 0.33 ? 0 : p < 0.7 ? 1 : 2; };
+        function clearThrows() {
+            projectiles.forEach(p => { scene.remove(p.mesh); scene.remove(p.shadow); }); projectiles = [];
+            pukeParts.forEach(p => scene.remove(p)); pukeParts = [];
+            puddles.forEach(p => scene.remove(p.mesh)); puddles = [];
+            racers.forEach(r => { if (r.bang) r.bang.visible = false; r.windT = 0; r.farT = 0; r.throwCd = 3 + Math.random() * 4; });
+            throwStage = 0; AJ.gag = 0; AJ.goldT = 0; window.__goldOff();
+            if ($('green-vig')) $('green-vig').style.opacity = 0;
+        }
+        function banner() { const b = $('desperate'); b.classList.add('on'); clearTimeout(banner.t); banner.t = setTimeout(() => b.classList.remove('on'), 2300); }
+        function windUp(r, opts) {
+            if (!r.bang) { r.bang = new THREE.Sprite(bangMat); r.bang.scale.set(0.45, 0.65, 1); r.bang.position.y = 2.45; r.mesh.add(r.bang); }
+            r.bang.visible = true; r.windT = 0.65; r.throwOpts = opts || {};
+            if (Math.random() < 0.5) say(r, 'toss');
+        }
+        function launch(r) {
+            const st = throwStage, o = r.throwOpts || {};
+            let goldLeft = o.golden !== undefined ? o.golden : Math.random() < 0.12 + st * 0.04;
+            const n = o.count || (Math.random() < THROW.volley[st] + currentLevel * 0.05 ? 2 + (Math.random() < 0.4 ? 1 : 0) : 1);
+            const gap = Math.max(1, AJ.s - r.s);
+            const T = (0.75 + gap * 0.04) * THROW.speed[st] * (o.speedMul || 1);
+            for (let i = 0; i < n; i++) {
+                const spread = n === 1 ? 0 : (i - (n - 1) / 2) * 1.7;
+                const ts = AJ.s + AJ.v * T, td = Math.max(-LAT_MAX, Math.min(LAT_MAX, AJ.d + AJ.vd * T * 0.4 + spread));
+                const y0 = r.y + 1.7, yT = AJ.y + 1.15, G = 14;
+                const p = { s: r.s + 0.3, d: r.d, y: y0, vs: (ts - r.s - 0.3) / T, vd: (td - r.d) / T, vy: (yT - y0 + 0.5 * G * T * T) / T, G, T, age: 0, golden: goldLeft, mesh: makePanty(goldLeft), shadow: new THREE.Mesh(GEO.blob || (GEO.blob = new THREE.PlaneGeometry(1, 1)), TEX.blob), spin: 9 + Math.random() * 5, life: 4 };
+                p.shadow.rotation.x = -Math.PI / 2; p.shadow.scale.set(0.6, 0.6, 1); goldLeft = false;
+                scene.add(p.mesh); scene.add(p.shadow); projectiles.push(p);
+            }
+            window.__throwStats.thrown++;
+            r.throwCd = THROW.cd[st] * (1 - currentLevel * 0.15) * (0.8 + Math.random() * 0.4);
+            r.farT = 0; playSound('jump');
+        }
+        // GOLDEN pair: a lucky catch -> GOLDEN BOOST, worn on AJ's head like a goofy sparkly hat
+        let goldHat = null, goldSparks = [];
+        function goldenHit() {
+            if (!goldHat) {
+                goldHat = makePanty(true); goldHat.scale.setScalar(1.75); goldHat.position.set(0, 2.3, 0.02); goldHat.rotation.x = -0.35; player.add(goldHat);
+                for (let i = 0; i < 6; i++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.glow, color: 0xffe060, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); sp.scale.setScalar(0.22); player.add(sp); goldSparks.push(sp); }
+            }
+            goldHat.visible = true; goldSparks.forEach(s => s.visible = true);
+            AJ.goldT = 5; window.__throwStats.golden = (window.__throwStats.golden || 0) + 1;
+            playSound('power'); showToast('GOLDEN PAIR! GOLDEN BOOST!', '#ffd040');
+        }
+        window.__goldOff = () => { if (goldHat) { goldHat.visible = false; goldSparks.forEach(s => s.visible = false); } };
+        function pukeHit() {
+            const sev = THROW.puke[throwStage];
+            AJ.gag = sev.slow; AJ.gagMul = sev.mul; AJ.gagSev = sev; AJ.pukeT = 0.45 + throwStage * 0.15;
+            window.__throwStats.hits++; window.__throwStats.bleh = (window.__throwStats.bleh || 0) + 1;
+            try { if (audioCtx && audioCtx.state === 'running') { tone('sawtooth', 320, 110, 0.32, 0.22); noise(0.3, 0.3, 650, 0.12); tone('square', 180, 90, 0.18, 0.12, 0.3); } } catch (e) { /* audio optional */ }
+            const b = $('bleh'); b.textContent = throwStage === 2 ? 'BLEHHH!!' : throwStage === 1 ? 'BLEHH!' : 'BLEH!';
+            b.classList.add('on'); clearTimeout(pukeHit.t); pukeHit.t = setTimeout(() => b.classList.remove('on'), 900);
+            $('green-vig').style.opacity = sev.vig;
+            showToast('PANTY TO THE FACE! (no heart lost)', '#9aff4a');
+            // the puddle lands just where AJ is now (he's already running on, unaffected)
+            const pd = { s: AJ.s + 0.8, d: AJ.d, r: sev.puddle, t: 12, mesh: new THREE.Mesh(GEO.blob || (GEO.blob = new THREE.PlaneGeometry(1, 1)), puddleMat.clone()) };
+            const w = trAt(pd.s, pd.d, _v2); pd.mesh.position.set(w.x, 0.05, w.z); pd.mesh.rotation.x = -Math.PI / 2; pd.mesh.scale.set(pd.r * 2.4, pd.r * 2.4, 1);
+            scene.add(pd.mesh); puddles.push(pd);
+            while (puddles.length > MAX_PUDDLES) { const o = puddles.shift(); scene.remove(o.mesh); o.mesh.material.dispose(); }
+        }
+        function emitPuke(dt) {
+            const sev = AJ.gagSev || THROW.puke[0];
+            const rate = sev.n / 0.45;
+            const n = Math.min(4, Math.round(rate * dt + Math.random()));
+            const P = player.userData.parts.head; P.getWorldPosition(_v2);
+            const h = player.rotation.y, fx = Math.sin(h), fz = Math.cos(h);
+            for (let i = 0; i < n && pukeParts.length < MAX_PUKE; i++) {
+                const m = new THREE.Mesh(pukeGeo, pukeMat);
+                m.position.set(_v2.x + fx * 0.25, _v2.y - 0.1, _v2.z + fz * 0.25);
+                const sp = 1.6 + throwStage * 0.8;
+                m.userData = { vx: fx * sp + (Math.random() - 0.5) * 1.2, vy: 1 + Math.random() * 1.5, vz: fz * sp + (Math.random() - 0.5) * 1.2, life: 0.7 + Math.random() * 0.3 };
+                m.scale.setScalar(0.7 + Math.random() * (0.6 + throwStage * 0.3));
+                scene.add(m); pukeParts.push(m);
+            }
+        }
+        function updateThrows(dt) {
+            if (!TR || !pantyGeo) return;
+            const racing = gameState === 'racing';
+            if (racing) {
+                const st = stageOf();
+                if (st > throwStage) { throwStage = st; banner(); }
+                if (!window.__freezeGirls && !window.__noThrows) {
+                    const active = racers.filter(r => r.windT > 0).length + projectiles.length;
+                    racers.forEach(r => {
+                        if (r.throwCd > 0) r.throwCd -= dt;
+                        const gap = AJ.s - r.s;
+                        if (gap > 3 && gap < THROW.range[throwStage] && r.stumble <= 0) r.farT = (r.farT || 0) + dt; else r.farT = 0;
+                        if (!(r.windT > 0) && r.throwCd <= 0 && r.farT > THROW.wait[throwStage] && active < THROW.throwers[throwStage] && AJ.invuln <= 0) windUp(r);
+                    });
+                }
+                racers.forEach(r => { if (r.windT > 0) { r.windT -= dt; if (r.windT <= 0) { if (r.bang) r.bang.visible = false; launch(r); } } });
+                // projectiles
+                for (let i = projectiles.length - 1; i >= 0; i--) {
+                    const p = projectiles[i];
+                    p.age += dt; const rem = p.T - p.age; if (rem > 0.12) p.vs = (AJ.s + AJ.v * rem - p.s) / rem; // only the distance self-corrects; dodge sideways or jump
+                    p.s += p.vs * dt; p.d += p.vd * dt; p.vy -= p.G * dt; p.y += p.vy * dt; p.life -= dt;
+                    const w = trAt(p.s, p.d, _v2);
+                    p.mesh.position.set(w.x, p.y, w.z); p.mesh.rotation.y += p.spin * dt; p.mesh.rotation.x = Math.sin(elapsed * 7 + i) * 0.5;
+                    p.shadow.position.set(w.x, 0.05, w.z); const sc = Math.max(0.25, 0.7 - p.y * 0.08); p.shadow.scale.set(sc, sc, 1);
+                    let done = false;
+                    if (Math.abs(p.s - AJ.s) < 0.6 + Math.abs(p.vs - AJ.v) * dt && Math.abs(p.d - AJ.d) < 0.6 && p.y > AJ.y + 0.35 && p.y < AJ.y + 2.1) { done = true; if (p.golden) goldenHit(); else pukeHit(); }
+                    else if (p.y <= 0.05 || p.life <= 0) { done = true; window.__throwStats.dodges++; if (p.s < AJ.s + 3 && p.s > AJ.s - 6) showToast('DODGED!', '#ffd040'); }
+                    if (done) { scene.remove(p.mesh); scene.remove(p.shadow); projectiles.splice(i, 1); }
+                }
+                // puddles: girls slip, AJ is immune to his own
+                racers.forEach(r => {
+                    if (r.slipCd > 0) r.slipCd -= dt;
+                    if (r.slipT > 0) r.slipT -= dt;
+                    if (r.slipCd > 0 || r.y > 0.2) return;
+                    for (const pd of puddles) if (Math.abs(r.s - pd.s) < pd.r && Math.abs(r.d - pd.d) < pd.r) { r.stumble = 1.5; r.slipT = 1.5; r.slipCd = 3.5; say(r, 'ew', true); window.__throwStats.slips++; break; }
+                });
+            }
+            if (AJ.pukeT > 0 && gameState !== 'paused') { AJ.pukeT -= dt; emitPuke(dt); }
+            for (let i = pukeParts.length - 1; i >= 0; i--) {
+                const m = pukeParts[i], u = m.userData; u.life -= dt; u.vy -= 12 * dt;
+                m.position.x += u.vx * dt; m.position.y = Math.max(0.04, m.position.y + u.vy * dt); m.position.z += u.vz * dt;
+                if (m.position.y <= 0.04) { u.vx *= 0.8; u.vz *= 0.8; m.scale.y = 0.4; }
+                if (u.life <= 0) { scene.remove(m); pukeParts.splice(i, 1); }
+            }
+            for (let i = puddles.length - 1; i >= 0; i--) { const pd = puddles[i]; pd.t -= dt; pd.mesh.material.opacity = 0.85 * Math.min(1, pd.t / 3); if (pd.t <= 0) { scene.remove(pd.mesh); pd.mesh.material.dispose(); puddles.splice(i, 1); } }
+            if (!(AJ.gag > 0) && $('green-vig') && $('green-vig').style.opacity !== '0') $('green-vig').style.opacity = 0;
+        }
+        { const prev = updateRacers; updateRacers = function (dt) { prev(dt); updateThrows(dt); }; }
+        { const prev = setupRace; setupRace = function (l) { ensureThrowAssets(); clearThrows(); prev(l); clearThrows(); }; }
+        { const prev = placeActors; placeActors = function (dt) {
+            prev(dt);
+            if (gameState === 'won' || gameState === 'lost') { if (gameState === 'lost') { projectiles.forEach(p => { scene.remove(p.mesh); scene.remove(p.shadow); }); projectiles = []; } return; }
+            if (gameState === 'paused') return;
+            if (goldHat && goldHat.visible) goldSparks.forEach((sp, i) => { const a = elapsed * 3 + i * 1.05; sp.position.set(Math.cos(a) * 0.45, 2.3 + Math.sin(elapsed * 5 + i) * 0.25, Math.sin(a) * 0.45); sp.material.opacity = 0.5 + 0.5 * Math.abs(Math.sin(elapsed * 9 + i * 2)); });
+            if (AJ.gag > 0 && AJ.gagSev) { const w = AJ.gagSev.wob; player.rotation.z = Math.sin(elapsed * 13) * w * 2; player.rotation.x += Math.sin(elapsed * 9) * w; player.userData.parts.head.rotation.x = -0.25; }
+            else player.userData.parts.head.rotation.x = 0;
+            racers.forEach(r => {
+                if (r.windT > 0) { r.arms[1].sh.rotation.x = -2.7; r.arms[1].sh.rotation.z = 0.3; r.body.rotation.x = -0.25; }
+                if (r.slipT > 0) { const k = r.slipT / 1.5; r.mesh.rotation.y += (1 - k) * 12; r.body.rotation.x = k > 0.4 ? -1.2 * (1 - k) * 2 : -1.35; r.body.position.y = k > 0.4 ? 0 : -0.55; r.arms[0].sh.rotation.z = -2.2 + Math.sin(elapsed * 20) * 0.5; r.arms[1].sh.rotation.z = 2.2 - Math.sin(elapsed * 20) * 0.5; }
+            });
+        }; }
+        Object.assign(window.RACE, {
+            throwAt: (k, opts) => { const r = racers[k]; r.throwCd = 0; windUp(r, opts); },
+            stage: () => throwStage,
+            puddles: () => puddles.map(p => ({ s: p.s, d: p.d, r: p.r, t: p.t })),
+            slipState: (k) => ({ slipT: racers[k].slipT || 0, stumble: racers[k].stumble }),
+            gag: () => AJ.gag || 0,
+            gold: () => ({ t: AJ.goldT || 0, hat: !!(goldHat && goldHat.visible) })
+        });
+        { const prev = updateAJ; updateAJ = function (dt) { const s0 = AJ.s; prev(dt); if (window.__freeze) AJ.s = s0; }; } // test hook: AJ stands still
+        /* ================= SPECIAL: buddies take one for the team ================= */
+        TAUNTS.tackled = [['きゃっ！', 'Eek!'], ['ちょっと〜！どいてよ！', 'Hey~! Move it!'], ['ずるーい！', 'No fair!']];
+        const SPECIAL_DUR = 4;
+        let buddies = [], specialT = 0, specialLeaveT = 0, specialBtn = null;
+        AJ.special = 0;
+        function buddyFace(kind) {
+            return pixTex(16, 16, (g) => {
+                px(g, 0, 0, kind === 'craig' ? '#e8b898' : '#d89a72', 16, 16);
+                px(g, 3, 5, kind === 'craig' ? '#b08a50' : '#c0501a', 4, 1); px(g, 9, 5, kind === 'craig' ? '#b08a50' : '#c0501a', 4, 1); // brows
+                px(g, 4, 7, '#ffffff', 2, 2); px(g, 10, 7, '#ffffff', 2, 2);
+                px(g, 5, 7, kind === 'bino' ? '#2a7ad8' : '#4a6a5a', 1, 2); px(g, 11, 7, kind === 'bino' ? '#2a7ad8' : '#4a6a5a', 1, 2);
+                px(g, 7, 9, 'rgba(120,60,40,0.5)', 2, 2); // nose
+                px(g, 5, 12, '#ffffff', 6, 1); px(g, 5, 13, '#8a3a2a', 6, 1); // big grin
+                if (kind === 'craig') px(g, 9, 10, '#e0e0e8', 1, 1); // nose ring glint
+            }, true);
+        }
+        function inkTex(text) { // stylized line-art tattoos + collarbone text (not a copy of any real tattoo)
+            return pixTex(64, 64, (g) => {
+                px(g, 0, 0, '#e8b898', 64, 64);
+                g.strokeStyle = 'rgba(30,30,40,0.75)'; g.lineWidth = 1.2;
+                for (let i = 0; i < 9; i++) { g.beginPath(); const x = 6 + (i * 23) % 52, y = 26 + (i * 17) % 34; g.arc(x, y, 4 + (i % 3) * 2, 0, 5); g.stroke(); g.beginPath(); g.moveTo(x - 6, y + 6); g.quadraticCurveTo(x, y - 8, x + 8, y + 4); g.stroke(); }
+                if (text) { g.fillStyle = 'rgba(20,20,30,0.85)'; g.font = 'bold 10px serif'; g.textAlign = 'center'; g.fillText(text, 32, 13); }
+            }, true);
+        }
+        function makeBuddy(kind) {
+            const C = kind === 'craig';
+            const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
+            const skin = phong({ color: C ? 0xe8b898 : 0xd89a72 });
+            const ink = C ? phong({ map: inkTex('LOYALTY') }) : skin;
+            const inkArm = C ? (TEX.aj ? TEX.aj.tattooArm : skin) : skin;
+            const pants = phong({ color: C ? 0x2a3448 : 0x3a3a40 });
+            const hairM = phong({ color: C ? 0xc8a860 : 0xd8541a }), beardM = phong({ color: C ? 0xd8904a : 0xe0601e });
+            const R = (w, h, d, m, x, y, z, parent, r) => { const mesh = new THREE.Mesh(rboxGeo(w, h, d, r !== undefined ? r : Math.min(w, h, d) * 0.42), m); mesh.position.set(x, y, z); (parent || body).add(mesh); return mesh; };
+            const legs = [], arms = [];
+            const W = C ? 1 : 1.18;
+            for (const s of [-1, 1]) {
+                const hip = new THREE.Group(); hip.position.set(0.18 * s * W, 0.86, 0); body.add(hip);
+                R(0.3 * W, 0.8, 0.32, pants, 0, -0.4, 0, hip);
+                R(0.28, 0.12, 0.4, phong({ color: 0x1a1a1e }), 0, -0.83, 0.06, hip, 0.05);
+                legs.push(hip);
+            }
+            R(0.78 * W, 0.22, 0.48, pants, 0, 0.95, 0);
+            const torsoMats = [skin, skin, skin, skin, ink, skin];
+            R(0.82 * W, 0.74, 0.5 * W, C ? torsoMats : skin, 0, 1.42, 0.02, null, 0.22);
+            if (!C) { const pec = R(0.7 * W, 0.18, 0.08, skin, 0, 1.58, 0.27, null, 0.06); pec.scale.z = 1; }
+            R(0.26, 0.16, 0.26, C ? ink : skin, 0, 1.82, 0, null, 0.12);
+            const fm = phong({ map: buddyFace(kind) });
+            const head = R(0.44, 0.46, 0.42, [skin, skin, skin, skin, fm, skin], 0, 2.08, 0.01, null, 0.17);
+            for (const s of [-1, 1]) {
+                const sh = new THREE.Group(); sh.position.set(0.52 * s * W, 1.68, 0); body.add(sh);
+                R(0.28 * W, 0.3, 0.3, skin, 0, -0.1, 0, sh);
+                const arm = new THREE.Mesh(capsuleGeo(0.1 * W, 0.5, 0.115 * W, 10), inkArm); arm.position.set(0, -0.52, 0); sh.add(arm);
+                const hand = new THREE.Mesh(GEO.ajHand || (GEO.ajHand = new THREE.SphereGeometry(0.105, 12, 8)), skin); hand.position.y = -0.9; sh.add(hand);
+                arms.push(sh);
+            }
+            if (C) {
+                for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2; R(0.16, 0.28, 0.14, hairM, Math.sin(a) * 0.2, 2.3 + (i % 2) * 0.05, Math.cos(a) * 0.17 - 0.03, null, 0.06).rotation.set(Math.cos(a) * 0.5, a, Math.sin(a) * 0.4); } // shaggy
+                R(0.42, 0.14, 0.4, hairM, 0, 2.32, -0.02, null, 0.07);
+                R(0.14, 0.12, 0.08, beardM, 0, 1.87, 0.2, null, 0.04); R(0.2, 0.04, 0.04, beardM, 0, 2.0, 0.23, null, 0.015); // goatee + mustache
+                const ring = new THREE.Mesh(new THREE.TorusGeometry(0.025, 0.007, 4, 10), phong({ color: 0xe0e0e8, shininess: 100 })); ring.position.set(0.04, 2.05, 0.23); body.add(ring);
+                for (const s of [-1, 1]) { const gauge = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.018, 6, 12), phong({ color: 0x8a8a92, shininess: 80 })); gauge.rotation.y = Math.PI / 2; gauge.position.set(0.23 * s, 2.0, 0.0); body.add(gauge); }
+            } else {
+                R(0.5, 0.42, 0.3, beardM, 0, 1.86, 0.16, null, 0.14); R(0.34, 0.08, 0.06, beardM, 0, 2.0, 0.23, null, 0.03); // bushy beard + 'stache
+                const cap = new THREE.Mesh(new THREE.SphereGeometry(0.245, 14, 6, 0, Math.PI * 2, 0, Math.PI * 0.5), phong({ color: 0xd82a1e })); cap.position.set(0, 2.24, 0); body.add(cap);
+                R(0.36, 0.035, 0.24, phong({ color: 0xb8201a }), 0, 2.25, -0.3, null, 0.015); // bill pointing backwards
+                const chain = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.035, 6, 18), phong({ color: 0xd8dce4, specular: 0xffffff, shininess: 120 })); chain.rotation.x = Math.PI / 2 - 0.35; chain.position.set(0, 1.74, 0.08); body.add(chain);
+            }
+            addBlobShadow(g, 0.5);
+            g.visible = false; scene.add(g);
+            return { mesh: g, body, legs, arms, head, name: C ? 'CRAIG' : 'BINO', side: C ? -1 : 1, s: 0, d: 0, bubble: null, flinch: 0 };
+        }
+        function ensureSpecial() {
+            if (specialBtn) return;
+            const css = document.createElement('style');
+            css.textContent = `#btn-special{position:absolute;right:calc(150px + env(safe-area-inset-right));bottom:calc(150px + env(safe-area-inset-bottom));width:64px;height:64px;border-radius:50%;border:2px solid rgba(255,208,64,.5);color:rgba(255,255,255,.55);font:900 .62rem 'Segoe UI',Arial Black,sans-serif;letter-spacing:1px;display:flex;align-items:center;justify-content:center;background:linear-gradient(to top,rgba(255,190,40,.55) var(--f,0%),rgba(20,20,30,.55) var(--f,0%));z-index:1000;user-select:none;-webkit-user-select:none;touch-action:none;pointer-events:auto}
+            #btn-special.ready{color:#fff;border-color:#fff;background:radial-gradient(circle,#ffe060,#ff8a1a);box-shadow:0 0 18px #ffd040,0 0 36px #ff8a1a;animation:spPulse .7s infinite alternate}
+            @keyframes spPulse{from{transform:scale(1)}to{transform:scale(1.1)}}
+            .bubble.buddy{border-color:#ffd040}`;
+            document.head.appendChild(css);
+            specialBtn = document.createElement('div'); specialBtn.id = 'btn-special'; specialBtn.textContent = 'SPECIAL'; $('hud').appendChild(specialBtn);
+            specialBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); activateSpecial(); }, { passive: false });
+            buddies = [makeBuddy('craig'), makeBuddy('bino')];
+        }
+        function addSpecial(v, why) {
+            if (specialT > 0) return;
+            const was = AJ.special; AJ.special = Math.min(100, AJ.special + v);
+            if (was < 100 && AJ.special >= 100) { showToast('SPECIAL READY! CALL THE BOYS!', '#ffd040'); playSound('power'); }
+            else if (why) showToast(why + ' +SPECIAL', '#ffe080');
+        }
+        function activateSpecial() {
+            if (gameState !== 'racing' || AJ.special < 100 || specialT > 0) return;
+            AJ.special = 0; specialT = SPECIAL_DUR; specialLeaveT = 0; window.__specialUses = (window.__specialUses || 0) + 1;
+            playSound('win');
+            buddies.forEach(b => {
+                b.s = AJ.s - 4; b.d = b.side * (LAT_MAX + 2.5); b.mesh.visible = true; b.flinch = 0;
+                if (!b.bubble) { b.bubble = document.createElement('div'); b.bubble.className = 'bubble buddy'; b.bubble.innerHTML = `<div class="b-name">${b.name}</div><div class="jp">TAKING ONE FOR THE TEAM!</div>`; $('game-container').appendChild(b.bubble); }
+                b.bubbleLife = 2.6;
+            });
+            showToast('THE BOYS ARE HERE!', '#ffd040');
+        }
+        function endSpecialNow() { specialT = 0; specialLeaveT = 0; buddies.forEach(b => { b.mesh.visible = false; if (b.bubble) b.bubble.style.opacity = 0; }); }
+        function updateSpecial(dt) {
+            if (!specialBtn || !TR) return;
+            specialBtn.classList.toggle('ready', AJ.special >= 100 && specialT <= 0);
+            specialBtn.style.setProperty('--f', AJ.special + '%');
+            if (gameState === 'racing') {
+                // near-misses: a girl gets within ~2 m and leaves again without tagging
+                racers.forEach(r => {
+                    const near = Math.hypot(r.s - AJ.s, r.d - AJ.d) < 2 && AJ.invuln <= 0;
+                    if (near && !r.nearIn) { r.nearIn = true; r.nearHearts = AJ.hearts; }
+                    else if (!near && r.nearIn && Math.hypot(r.s - AJ.s, r.d - AJ.d) > 2.6) { r.nearIn = false; if (AJ.hearts === r.nearHearts && AJ.invuln <= 0) { addSpecial(14, 'NEAR MISS!'); window.__nearMisses = (window.__nearMisses || 0) + 1; } }
+                });
+                const dg = window.__throwStats.dodges; if (dg > (updateSpecial.lastD || 0)) addSpecial(18 * (dg - (updateSpecial.lastD || 0))); updateSpecial.lastD = dg;
+            }
+            const active = specialT > 0, leaving = specialLeaveT > 0;
+            if (!active && !leaving) { buddies.forEach(b => { if (b.mesh.visible) b.mesh.visible = false; if (b.bubble) b.bubble.style.opacity = 0; }); return; }
+            if (gameState === 'paused') return;
+            if (active && gameState === 'racing') {
+                specialT -= dt; if (specialT <= 0) { specialLeaveT = 1.6; }
+                buddies.forEach(b => {
+                    const ts = AJ.s - 1.9, td = b.side * 1.7;
+                    b.s += Math.max(-20 * dt, Math.min(20 * dt, ts - b.s)); b.d += Math.max(-9 * dt, Math.min(9 * dt, td - b.d));
+                    racers.forEach(r => { // body-block / tackle
+                        if (r.s < AJ.s + 0.3 && r.s > AJ.s - 6 && !(r.tackled > 0)) { r.tackled = 1.6; r.stumble = 1.6; r.slow = 2; r.s = Math.min(r.s, AJ.s - 4) - 2; r.slipT = 1.5; say(r, 'tackled', true); window.__tackles = (window.__tackles || 0) + 1; b.flinch = 0.3; }
+                    });
+                    for (let i = projectiles.length - 1; i >= 0; i--) { const p = projectiles[i]; if (p.s > AJ.s - 5 && p.s < AJ.s + 0.4 && Math.abs(p.d - b.d) < 3.5) { scene.remove(p.mesh); scene.remove(p.shadow); projectiles.splice(i, 1); window.__throwStats.blocked = (window.__throwStats.blocked || 0) + 1; b.flinch = 0.4; showToast('BLOCKED! ' + b.name + ' TOOK ONE!', '#ffd040'); } }
+                });
+            } else if (!active) {
+                specialLeaveT -= dt;
+                buddies.forEach(b => { b.d += b.side * 7 * dt; b.s -= 4 * dt; });
+                if (specialLeaveT <= 0) endSpecialNow();
+            }
+            racers.forEach(r => { if (r.tackled > 0) r.tackled -= dt; });
+            const w = window.innerWidth, hh = window.innerHeight;
+            buddies.forEach((b, k) => {
+                const t = trAt(b.s, b.d, _v2); b.mesh.position.set(t.x, 0, t.z);
+                b.mesh.rotation.y = t.h + (specialLeaveT > 0 && specialT <= 0 ? b.side * 1.2 : -b.side * 0.25);
+                const c = elapsed * 13 + k, sw = Math.sin(c) * 0.9;
+                b.legs[0].rotation.x = sw; b.legs[1].rotation.x = -sw;
+                b.arms[0].rotation.x = active ? -1.6 : -sw; b.arms[1].rotation.x = active ? -1.6 : sw; // arms out to block
+                b.arms[0].rotation.z = active ? -0.5 : 0; b.arms[1].rotation.z = active ? 0.5 : 0;
+                if (b.flinch > 0) { b.flinch -= dt; b.body.rotation.x = -0.4; } else b.body.rotation.x = 0.15;
+                b.mesh.position.y = Math.abs(Math.cos(c)) * 0.08;
+                if (b.bubble) {
+                    if (b.bubbleLife > 0) b.bubbleLife -= dt;
+                    b.head.getWorldPosition(_v1); _v1.y += 0.7; _v1.project(camera);
+                    if (b.bubbleLife > 0 && _v1.z < 1) { b.bubble.style.left = '0px'; b.bubble.style.top = '0px'; b.bubble.style.transform = `translate(${(_v1.x * 0.5 + 0.5) * w | 0}px, ${(-_v1.y * 0.5 + 0.5) * hh | 0}px) translate(-50%, -100%)`; b.bubble.style.opacity = Math.min(1, b.bubbleLife / 0.4); }
+                    else b.bubble.style.opacity = 0;
+                }
+            });
+        }
+        { const prev = updateRacers; updateRacers = function (dt) { prev(dt); updateSpecial(dt); }; }
+        { const prev = setupRace; setupRace = function (l) { ensureSpecial(); prev(l); AJ.special = 0; endSpecialNow(); updateSpecial.lastD = window.__throwStats.dodges; racers.forEach(r => { r.nearIn = false; r.tackled = 0; }); }; }
+        { const prev = updateHUD; updateHUD = function () { prev(); if (specialBtn) { specialBtn.classList.toggle('ready', AJ.special >= 100 && specialT <= 0); specialBtn.style.setProperty('--f', AJ.special + '%'); } }; }
+        { const prev = placeActors; placeActors = function (dt) { prev(dt); if (gameState !== 'racing' && specialT <= 0 && specialLeaveT <= 0) buddies.forEach(b => { if (b.bubble) b.bubble.style.opacity = 0; }); }; }
+        Object.assign(window.RACE, {
+            special: (v) => { if (v !== undefined) AJ.special = v; return { meter: AJ.special, active: specialT > 0, leaving: specialLeaveT > 0, visible: buddies.map(b => b.mesh.visible) }; }
+        });
+        /* ================= SCORE + catch penalties (coin flip) ================= */
+        const BEST_KEY = 'ajrace.best.v1';
+        let score = 0, scoreAcc = 0, lastHearts = 0, lastSlips = 0, scoreEl = null;
+        const PENALTIES = [['MET HER PARENTS', 'Dad asked about his "career plans"...'], ['SHE CHANGED HIS RELATIONSHIP STATUS', '"In a relationship" — he was not consulted']];
+        function loadBest() { try { return JSON.parse(localStorage.getItem(BEST_KEY) || '{}') || {}; } catch (e) { return {}; } }
+        function ensureScoreUI() {
+            if (scoreEl) return;
+            const css = document.createElement('style');
+            css.textContent = `.score-row{font:900 .95rem 'Segoe UI',Arial Black,sans-serif;color:#fff;letter-spacing:1px;margin-top:2px}.score-row b{color:#ffd040}
+            .spop{position:absolute;left:0;top:0;font:900 1.15rem Impact,'Arial Black',sans-serif;pointer-events:none;z-index:1070;-webkit-text-stroke:1px #000;animation:spop 1.1s ease-out forwards;white-space:nowrap}
+            @keyframes spop{0%{opacity:0;margin-top:0}15%{opacity:1}100%{opacity:0;margin-top:-60px}}
+            #coin-wrap{position:absolute;left:50%;top:30%;transform:translate(-50%,-50%);display:none;flex-direction:column;align-items:center;z-index:1080;pointer-events:none}
+            #coin{width:58px;height:58px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff6b0,#ffc830 55%,#b8860a);border:3px solid #fff2a0;box-shadow:0 0 16px #ffc830;font:900 1.4rem Impact,sans-serif;color:#8a5a00;display:flex;align-items:center;justify-content:center}
+            #coin.flip{animation:coinflip .9s cubic-bezier(.3,.6,.4,1)}
+            @keyframes coinflip{0%{transform:translateY(0) rotateY(0)}50%{transform:translateY(-70px) rotateY(900deg)}100%{transform:translateY(0) rotateY(1800deg)}}
+            #coin-card{margin-top:8px;background:#fff;color:#c81e5a;border:3px solid #ff2a8a;border-radius:12px;padding:5px 12px;text-align:center;font:900 .95rem 'Segoe UI',Arial Black,sans-serif;opacity:0;transform:scale(.5);transition:all .2s;max-width:70vw}
+            #coin-card small{display:block;color:#555;font:600 .7rem 'Segoe UI',Arial,sans-serif}
+            #coin-card.on{opacity:1;transform:scale(1) rotate(-3deg)}`;
+            document.head.appendChild(css);
+            scoreEl = document.createElement('div'); scoreEl.className = 'score-row'; scoreEl.innerHTML = 'SCORE <b id="score">0</b>';
+            document.querySelector('.race-panel').appendChild(scoreEl);
+            const cw = document.createElement('div'); cw.id = 'coin-wrap'; cw.innerHTML = '<div id="coin">?</div><div id="coin-card"></div>'; $('hud').appendChild(cw);
+        }
+        function popup(text, color, dy = 0) {
+            player.getWorldPosition(_v2); _v2.y += 2.6; _v2.project(camera);
+            const d = document.createElement('div'); d.className = 'spop'; d.textContent = text; d.style.color = color;
+            d.style.transform = `translate(${(_v2.x * 0.5 + 0.5) * innerWidth + (Math.random() - 0.5) * 40 | 0}px, ${(-_v2.y * 0.5 + 0.5) * innerHeight + dy | 0}px) translate(-50%,-100%)`;
+            $('hud').appendChild(d); setTimeout(() => d.remove(), 1150);
+        }
+        function addScore(v, why) { (window.__scoreLog = window.__scoreLog || []).push([v, why || ""]);
+            score += v; $('score').textContent = score;
+            if (why !== undefined) popup((v > 0 ? '+' : '') + v + (why ? ' ' + why : ''), v >= 0 ? '#9aff4a' : '#ff5a6a');
+        }
+        function coinFlip() {
+            const pick = PENALTIES[Math.random() < 0.5 ? 0 : 1];
+            const cw = $('coin-wrap'), coin = $('coin'), card = $('coin-card');
+            cw.style.display = 'flex'; card.classList.remove('on'); coin.textContent = '?';
+            coin.classList.remove('flip'); void coin.offsetWidth; coin.classList.add('flip');
+            clearTimeout(coinFlip.t1); clearTimeout(coinFlip.t2);
+            coinFlip.t1 = setTimeout(() => { coin.textContent = pick === PENALTIES[0] ? '👪' : '💍'; card.innerHTML = pick[0] + '!<small>' + pick[1] + '</small>'; card.classList.add('on'); popup('-15', '#ff5a6a'); }, 900);
+            coinFlip.t2 = setTimeout(() => { cw.style.display = 'none'; card.classList.remove('on'); }, 2700);
+            addScore(-15); window.__penalties = (window.__penalties || []).concat(pick[0]);
+        }
+        function updateScore(dt) {
+            if (gameState !== 'racing') return;
+            scoreAcc += dt; while (scoreAcc >= 1) { scoreAcc -= 1; addScore(1); }
+            if (AJ.hearts > lastHearts) { for (let i = lastHearts; i < AJ.hearts; i++) coinFlip(); lastHearts = AJ.hearts; }
+            const sl = window.__throwStats.slips; if (sl > lastSlips) { addScore(5 * (sl - lastSlips), 'SLIP!'); lastSlips = sl; }
+        }
+        { const prev = updateRacers; updateRacers = function (dt) { prev(dt); updateScore(dt); }; }
+        { const prev = stumbleAJ; stumbleAJ = function (t) { const was = AJ.stumble; prev(t); if (was <= 0 && AJ.stumble > 0 && gameState === 'racing') addScore(-5, ''); }; }
+        { const prev = goldenHit; goldenHit = function () { prev(); addScore(10, 'GOLD'); }; }
+        { const prev = pukeHit; pukeHit = function () { prev(); addScore(-2, ''); }; }
+        { const prev = setupRace; setupRace = function (l) { ensureScoreUI(); prev(l); score = 0; scoreAcc = 0; lastHearts = 0; lastSlips = window.__throwStats.slips; $('score').textContent = 0; $('coin-wrap').style.display = 'none'; }; }
+        function finalScore(statsId) {
+            const L = LEVELS[currentLevel], best = loadBest(), prevBest = best[L.id];
+            const isNew = prevBest === undefined || score > prevBest;
+            if (isNew) { best[L.id] = score; try { localStorage.setItem(BEST_KEY, JSON.stringify(best)); } catch (e) { /* private mode */ } }
+            $(statsId).innerHTML += `<br>SCORE <b style="color:#ffd040">${score}</b> &bull; BEST ${isNew ? score + ' <b style="color:#9aff4a">NEW!</b>' : prevBest}`;
+        }
+        { const prev = winRace; winRace = function () { const g = gameState; prev(); if (g === 'racing' && gameState === 'won') finalScore('win-stats'); }; }
+        { const prev = loseRace; loseRace = function (k, w) { const g = gameState; if (g === 'racing' && AJ.hearts > lastHearts) { coinFlip(); lastHearts = AJ.hearts; } prev(k, w); if (g === 'racing' && gameState === 'lost') finalScore('lose-stats'); }; }
+        Object.assign(window.RACE, { score: () => score, best: () => loadBest() });
 
         window.addEventListener('load', init);
 </script>
